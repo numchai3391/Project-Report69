@@ -485,6 +485,9 @@
     }
 
     async function loadAdminDefaultsFromSheet(showNotification = false) {
+      // ตรวจสอบว่าเป็นเครื่องใหม่ที่ยังไม่มีข้อมูลเกณฑ์หรือไม่
+      const isInitialEmpty = Object.keys(adminDefaults).length === 0 && !showNotification;
+      
       if(showNotification) {
           const icon = document.getElementById('syncIcon');
           if(icon) icon.classList.add('animate-spin');
@@ -495,7 +498,23 @@
           if (response && response.success && Object.keys(response.data).length > 0) {
               adminDefaults = response.data;
               saveToLocalStorage(true); // เซฟเฉพาะ Local ไม่ต้องยิงข้อมูลกลับ
-              if(showNotification) showToast('ซิงค์ข้อมูลเป้าหมายสำเร็จ', 'success');
+              
+              if(showNotification) {
+                  showToast('ซิงค์ข้อมูลเป้าหมายสำเร็จ', 'success');
+              } else if (isInitialEmpty) {
+                  showToast('โหลดเกณฑ์ประเมินล่าสุดสำเร็จ', 'success');
+              }
+              
+              // อัปเดตหน้าจออัตโนมัติหากผู้ใช้กำลังเปิดหน้าที่ต้องใช้ข้อมูลเกณฑ์
+              const activeTab = document.querySelector('.nav-tab.active');
+              if (activeTab) {
+                  const activePage = activeTab.getAttribute('data-page');
+                  if (activePage === 'achievements') renderAchievementsPage();
+                  else if (activePage === 'results') renderResultsTable();
+                  else if (activePage === 'summary') renderSchoolSummaryPage();
+                  else if (activePage === 'admin') renderAdminPage();
+              }
+              
           } else {
               if(showNotification) showToast('ไม่พบข้อมูล หรือ Sheet ว่างเปล่า', 'warning');
           }
@@ -506,7 +525,6 @@
           if(showNotification) {
               const icon = document.getElementById('syncIcon');
               if(icon) icon.classList.remove('animate-spin');
-              renderAdminPage();
           }
       }
     }
@@ -899,6 +917,12 @@
       try {
         loadFromLocalStorage();
         if (!activities || activities.length === 0) addActivity();
+        
+        // ถ้าเปิดหน้าเว็บครั้งแรกและยังไม่มีเกณฑ์ ให้แจ้งให้ผู้ใช้ทราบว่ากำลังดึงข้อมูล
+        if (Object.keys(adminDefaults).length === 0) {
+            showToast('กำลังโหลดเกณฑ์ประเมินจากส่วนกลาง...', 'info');
+        }
+        
         loadAdminDefaultsFromSheet(false);
       } catch (e) { console.error("Init Error:", e); }
     })();
